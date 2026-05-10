@@ -1,92 +1,34 @@
-# Firmware
+Firmware File Description
 
-This folder contains all firmware-related code used in the Indoor RSSI Based Rover Localization System.
+1. main.c
+- Main entry point of the firmware.
+- Initializes Wi-Fi, ESP-NOW communication, and system components.
+- Handles overall rover workflow and task execution.
+- Coordinates communication between localization, RSSI analysis, and navigation modules.
 
-The firmware is developed primarily using ESP-IDF and runs on ESP32 microcontrollers used for both stationary nodes and the mobile rover.
+2. espnow_rx.c
+- Handles ESP-NOW packet reception.
+- Receives wireless data transmitted between ESP32 devices.
+- Processes incoming RSSI-related communication data.
+- Used for real-time wireless communication between nodes and rover.
 
----
+3. espnow_rx.h
+- Header file for espnow_rx.c.
+- Contains function declarations, structures, and shared definitions related to ESP-NOW reception.
 
-# Hardware Used
+4. web_server.c
+- Creates a web server directly on the ESP32 rover.
+- Allows external devices such as laptops or phones to connect directly to the ESP32 access point.
+- Displays live rover data, RSSI values, and localization information through a browser interface.
+- Enables wireless monitoring of rover data while the rover is moving.
 
-- ESP32 Development Boards
-- Mobile Rover Chassis
-- DC Motors
-- Motor Driver Module
-- Power Supply/Battery Pack
+5. web_server.h
+- Header file for web_server.c.
+- Contains function declarations and shared definitions for web server operations.
 
----
+6. CMakeLists.txt
+- ESP-IDF build configuration file.
+- Defines source files and build settings required for firmware compilation.
 
-# Firmware Components
-
-## ESP32 Corner Nodes
-
-The stationary ESP32 nodes are placed at the corners of the mapped area. Their main purpose is to continuously transmit Wi-Fi packets that can be detected by the rover.
-
-### Responsibilities
-
-- Continuous Wi-Fi beacon transmission
-- Stable signal broadcasting
-- Providing RSSI reference values for localization
-
----
-
-## Rover Firmware
-
-The rover firmware is responsible for collecting RSSI values from all ESP32 nodes and estimating its approximate position inside the grid system.
-
-### Responsibilities
-
-- Wi-Fi packet scanning
-- RSSI collection and analysis
-- Grid estimation logic
-- Navigation control
-- Motor control
-- Communication with backend server
-- Receiving target grid commands
-
----
-
-# Localization Method
-
-The localization system works using RSSI (Received Signal Strength Indicator) values collected from four ESP32 nodes.
-
-The mapped environment is divided into a 4×4 grid. RSSI values from each node are collected and stored for every grid during calibration. During runtime, the rover compares live RSSI values against stored values to estimate its approximate location.
-
-This method provides a lightweight and low-cost alternative to expensive localization systems such as UWB and LiDAR.
-
----
-
-# Communication
-
-The firmware uses wireless communication between devices and the backend server.
-
-## Communication Features
-
-- Wi-Fi based communication
-- Real-time RSSI data transfer
-- Backend connectivity
-- Remote command reception
-- Live rover monitoring
-
----
-
-# Technologies Used
-
-- ESP-IDF
-- FreeRTOS
-- Wi-Fi APIs
-- MQTT/WebSocket communication
-- C Programming Language
-
----
-
-# Purpose of the Firmware
-
-The firmware acts as the core intelligence layer of the system by enabling:
-
-- Indoor localization
-- Autonomous navigation
-- Real-time wireless communication
-- Grid-based movement
-- Backend data logging
-- Remote monitoring and control
+7. README.txt
+- Documentation file explaining firmware structure, functionality, and module descriptions.
