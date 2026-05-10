@@ -1,5 +1,6 @@
 # indoor-rssi-rover
 # Indoor RSSI Based Rover Localization System
+<img width="1200" height="1600" alt="WhatsApp Image 2026-05-10 at 08 55 26" src="https://github.com/user-attachments/assets/8a14f371-2beb-406a-809d-fb7ef19b473b" />
 
 ## Overview
 
