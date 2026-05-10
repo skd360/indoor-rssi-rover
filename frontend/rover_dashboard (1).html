@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RoverNav — Indoor Localization Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #060b14;
+  --surface: #0b1628;
+  --surface2: #0f1e35;
+  --border: #1a3050;
+  --border2: #1f3d68;
+  --accent: #00d4ff;
+  --accent2: #0088bb;
+  --green: #00ff9f;
+  --green2: #00bb75;
+  --amber: #ffb830;
+  --red: #ff3d5a;
+  --purple: #a855f7;
+  --text: #e0eeff;
+  --text2: #6a95cc;
+  --text3: #3a5f8a;
+  --mono: 'Share Tech Mono', monospace;
+  --ui: 'Rajdhani', sans-serif;
+  --body: 'Exo 2', sans-serif;
+  --zone-size: 80px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,212,255,0.012) 2px, rgba(0,212,255,0.012) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-icon::after {
+  content: '';
+  width: 12px; height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: blink 2s infinite;
+}
+@keyframes blink {
+  0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,212,255,0.4);}
+  50%{opacity:0.7;box-shadow:0 0 0 5px rgba(0,212,255,0);}
+}
+.logo-text { font-family:var(--ui); font-weight:700; font-size:22px; letter-spacing:2px; color:var(--accent); }
+.logo-sub { font-family:var(--mono); font-size:10px; color:var(--text2); letter-spacing:1px; }
+
+.mode-badge {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 2px;
+  padding: 8px 24px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.mode-badge.log { background: rgba(168,85,247,0.15); color: var(--purple); border: 1px solid rgba(168,85,247,0.4); }
+.mode-badge.travel { background: rgba(255,184,48,0.12); color: var(--amber); border: 1px solid rgba(255,184,48,0.4); box-shadow: 0 0 16px rgba(255,184,48,0.15); }
+
+.status-row { display:flex; gap:12px; align-items:center; }
+.status-dot { width:8px; height:8px; border-radius:50%; }
+.status-txt { font-family:var(--mono); font-size:11px; color:var(--text2); }
+
+/* LAYOUT */
+.app-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 16px;
+  padding: 16px;
+  min-height: calc(100vh - 62px);
+}
+
+/* ARENA */
+.arena-panel { display:flex; flex-direction:column; gap:12px; }
+.arena-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.arena-title { font-family:var(--ui); font-weight:600; font-size:13px; letter-spacing:2px; color:var(--text2); text-transform:uppercase; }
+.arena-stats { display:flex; gap:20px; }
+.stat-item { font-family:var(--mono); font-size:11px; }
+.stat-label { color:var(--text3); }
+.stat-val { color:var(--accent); margin-left:6px; }
+.stat-val.green { color:var(--green); }
+.stat-val.amber { color:var(--amber); }
+
+.arena-wrapper {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+  overflow: hidden;
+  min-height: 420px;
+}
+.arena-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(0,212,255,0.04) 0%, transparent 70%);
+}
+
+.grid-container { position: relative; }
+.row-labels {
+  display: flex; flex-direction: column;
+  position: absolute; left: -28px; top: 0;
+}
+.row-label {
+  height: var(--zone-size);
+  display: flex; align-items: center;
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+}
+.col-labels { display:flex; position:absolute; top:-24px; left:0; }
+.col-label {
+  width: var(--zone-size);
+  text-align: center;
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, var(--zone-size));
+  grid-template-rows: repeat(4, var(--zone-size));
+  gap: 3px;
+  position: relative;
+}
+
+.zone {
+  width: var(--zone-size);
+  height: var(--zone-size);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  overflow: hidden;
+}
+.zone:hover { border-color: var(--accent); z-index: 2; }
+.zone.selected {
+  border-color: var(--accent);
+  background: rgba(0,212,255,0.08);
+  box-shadow: 0 0 12px rgba(0,212,255,0.2);
+}
+.zone.logged {
+  border-color: var(--green2);
+  background: rgba(0,255,159,0.04);
+}
+.zone.logged.selected {
+  border-color: var(--green);
+  background: rgba(0,255,159,0.1);
+  box-shadow: 0 0 12px rgba(0,255,159,0.2);
+}
+/* Travel mode: target zone */
+.zone.target-zone {
+  border-color: var(--accent);
+  background: rgba(0,212,255,0.07);
+  box-shadow: 0 0 14px rgba(0,212,255,0.25);
+  animation: target-pulse 1.2s ease-in-out infinite;
+}
+@keyframes target-pulse {
+  0%,100%{box-shadow:0 0 10px rgba(0,212,255,0.2);}
+  50%{box-shadow:0 0 22px rgba(0,212,255,0.45);}
+}
+
+.zone-id {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  position: absolute;
+  top: 4px; left: 5px;
+}
+.zone-logged-mark {
+  font-size: 13px;
+  color: var(--green);
+  line-height: 1;
+}
+.zone-rssi-mini {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--green2);
+  margin-top: 2px;
+}
+.zone-confidence-bar {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--green), var(--accent));
+  transition: width 0.3s;
+}
+
+#rover-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* SIDE PANEL */
+.side-panel { display:flex; flex-direction:column; gap:12px; }
+
+.panel-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.panel-card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--text2);
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+.phd { width:6px; height:6px; border-radius:50%; }
+.panel-card-body { padding: 14px; }
+
+.zone-detail-id {
+  font-family: var(--ui);
+  font-weight: 700;
+  font-size: 32px;
+  color: var(--accent);
+  letter-spacing: 4px;
+  margin-bottom: 14px;
+}
+
+.rssi-fields { display:flex; flex-direction:column; gap:10px; }
+.rssi-row { display:flex; align-items:center; gap:10px; }
+.rssi-label { font-family:var(--mono); font-size:12px; color:var(--text2); width:24px; }
+.rssi-bar-wrap { flex:1; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+.rssi-bar { height:100%; background:linear-gradient(90deg,var(--accent2),var(--accent)); border-radius:2px; transition:width 0.4s; }
+.rssi-input {
+  width: 68px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 6px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.rssi-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.15); }
+
+.btn-row { display:flex; gap:8px; margin-top:14px; }
+.btn {
+  flex: 1;
+  font-family: var(--ui);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 9px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text2);
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--surface2); color: var(--text); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#000; font-weight:700; }
+.btn.primary:hover { background:#00bfea; }
+.btn.danger { border-color:var(--red); color:var(--red); }
+.btn.danger:hover { background:rgba(255,61,90,0.1); }
+.btn.submit {
+  background: var(--green);
+  border-color: var(--green);
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  box-shadow: 0 0 16px rgba(0,255,159,0.3);
+  margin-top: 6px;
+}
+.btn.submit:hover { background: #00e88f; box-shadow: 0 0 24px rgba(0,255,159,0.5); }
+.btn.back { border-color:var(--amber); color:var(--amber); }
+.btn.back:hover { background:rgba(255,184,48,0.1); }
+
+/* Log stats */
+.log-stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.log-stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.log-stat-val { font-family:var(--ui); font-weight:700; font-size:22px; color:var(--accent); line-height:1; }
+.log-stat-val.green { color:var(--green); }
+.log-stat-val.amber { color:var(--amber); }
+.log-stat-label { font-family:var(--mono); font-size:9px; color:var(--text3); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+
+/* Travel side panel */
+.travel-info { padding:14px; display:flex; flex-direction:column; gap:12px; }
+.rover-zone-display {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--amber);
+  border-radius: 6px;
+  box-shadow: 0 0 12px rgba(255,184,48,0.1);
+}
+.rzd-label { font-family:var(--mono); font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; }
+.rzd-val { font-family:var(--ui); font-weight:700; font-size:22px; color:var(--amber); letter-spacing:2px; }
+
+.heading-display {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.hdg-label { font-family:var(--mono); font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; }
+.hdg-val { font-family:var(--mono); font-size:16px; color:var(--purple); }
+
+.path-log {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.path-log-title { font-family:var(--mono); font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.path-entry {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 8px;
+}
+.path-entry:last-child { border-bottom:none; }
+.path-arrow { color:var(--accent); }
+.path-from { color:var(--text3); }
+.path-to { color:var(--green); font-weight:600; }
+
+.no-zone { text-align:center; padding:24px; color:var(--text3); font-family:var(--mono); font-size:12px; line-height:2; }
+
+/* Instruction banner */
+.instruction-banner {
+  padding: 10px 14px;
+  background: rgba(0,212,255,0.06);
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* Moving animation for rover */
+@keyframes rover-arrive {
+  0% { transform: scale(1.4); opacity:0.6; }
+  100% { transform: scale(1); opacity:1; }
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  background: var(--surface);
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--green);
+  z-index: 1000;
+  transform: translateY(60px);
+  opacity: 0;
+  transition: all 0.3s;
+  box-shadow: 0 0 20px rgba(0,255,159,0.2);
+}
+.toast.show { transform:translateY(0); opacity:1; }
+.toast.error { border-color:var(--red); color:var(--red); box-shadow:0 0 20px rgba(255,61,90,0.2); }
+.toast.info { border-color:var(--amber); color:var(--amber); box-shadow:0 0 20px rgba(255,184,48,0.15); }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:var(--border); }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <div>
+      <div class="logo-text">ROVERNAV</div>
+      <div class="logo-sub">RSSI FINGERPRINT + IMU FUSION SYSTEM</div>
+    </div>
+  </div>
+  <div id="mode-badge" class="mode-badge log">⬡ LOG MODE</div>
+  <div class="status-row">
+    <div class="status-dot" id="conn-dot" style="background:var(--text3)"></div>
+    <span class="status-txt" id="conn-txt">STANDBY</span>
+  </div>
+</header>
+
+<div class="app-layout">
+  <!-- ARENA -->
+  <div class="arena-panel">
+    <div class="arena-header">
+      <span class="arena-title" id="arena-title">📋 LOG MODE — RSSI FINGERPRINT MAP</span>
+      <div class="arena-stats">
+        <span class="stat-item"><span class="stat-label">MAPPED</span><span class="stat-val green" id="stat-mapped">0</span></span>
+        <span class="stat-item"><span class="stat-label">UNMAPPED</span><span class="stat-val amber" id="stat-unmapped">16</span></span>
+        <span class="stat-item"><span class="stat-label">COVERAGE</span><span class="stat-val" id="stat-cov">0%</span></span>
+      </div>
+    </div>
+    <div class="arena-wrapper" id="arena-wrapper">
+      <canvas id="rover-canvas"></canvas>
+      <div class="grid-container">
+        <div class="col-labels" id="col-labels"></div>
+        <div class="row-labels" id="row-labels"></div>
+        <div class="grid" id="arena-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel" id="side-panel"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLS = ['1','2','3','4'];
+const ROWS = ['A','B','C','D'];
+const TOTAL = 16;
+
+// --- State ---
+let mode = 'log'; // 'log' | 'travel'
+let selectedZone = null;
+let fingerprints = {};
+
+// Rover state — always starts A1 facing A2 (east, heading = 90deg)
+let rover = {
+  zone: 'A1',
+  x: 0,    // grid col index (0-based)
+  y: 0,    // grid row index (0-based)
+  heading: 90, // degrees: 0=north(up), 90=east(right), 180=south(down), 270=west
+  trail: [], // [{x,y}] grid-fraction positions
+  moving: false,
+  targetZone: null
+};
+
+// Animation state
+let animFrame = null;
+let animProgress = 0; // 0..1
+let animFrom = null;
+let animTo = null;
+let pathLog = []; // [{from, to}]
+
+// --- Persistence ---
+function save() { try { localStorage.setItem('rovernav2_fp', JSON.stringify(fingerprints)); } catch(e){} }
+function load() { try { const d=localStorage.getItem('rovernav2_fp'); if(d) fingerprints=JSON.parse(d); } catch(e){} }
+load();
+
+// --- Grid Build ---
+function buildGrid() {
+  const grid = document.getElementById('arena-grid');
+  const colLabels = document.getElementById('col-labels');
+  const rowLabels = document.getElementById('row-labels');
+  colLabels.innerHTML = ''; rowLabels.innerHTML = ''; grid.innerHTML = '';
+
+  COLS.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'col-label'; el.textContent = c;
+    colLabels.appendChild(el);
+  });
+  ROWS.forEach(r => {
+    const el = document.createElement('div');
+    el.className = 'row-label'; el.textContent = r;
+    rowLabels.appendChild(el);
+  });
+  ROWS.forEach(row => {
+    COLS.forEach(col => {
+      const id = row + col;
+      const z = document.createElement('div');
+      z.className = 'zone';
+      z.id = 'zone-' + id;
+      z.dataset.zone = id;
+      z.innerHTML = `<span class="zone-id">${id}</span>
+        <div class="zone-confidence-bar" id="cbar-${id}" style="width:0%"></div>`;
+      z.onclick = () => onZoneClick(id);
+      grid.appendChild(z);
+    });
+  });
+  refreshGrid();
+  drawRover();
+}
+
+function refreshGrid() {
+  const mapped = Object.keys(fingerprints).length;
+  document.getElementById('stat-mapped').textContent = mapped;
+  document.getElementById('stat-unmapped').textContent = TOTAL - mapped;
+  document.getElementById('stat-cov').textContent = Math.round(mapped/TOTAL*100) + '%';
+
+  ROWS.forEach(r => COLS.forEach(c => {
+    const id = r+c;
+    const z = document.getElementById('zone-'+id);
+    if (!z) return;
+    z.classList.remove('logged','selected','target-zone');
+
+    // Rebuild inner content
+    let inner = `<span class="zone-id">${id}</span>`;
+    if (fingerprints[id]) {
+      z.classList.add('logged');
+      const fp = fingerprints[id];
+      const avg = (fp.N1+fp.N2+fp.N3+fp.N4)/4;
+      const conf = Math.max(0, Math.min(100, ((avg+90)/40)*100));
+      inner += `<div class="zone-logged-mark">●</div>
+        <div class="zone-rssi-mini">${Math.round(avg)} dBm</div>`;
+      inner += `<div class="zone-confidence-bar" id="cbar-${id}" style="width:${conf.toFixed(0)}%"></div>`;
+    } else {
+      inner += `<div class="zone-confidence-bar" id="cbar-${id}" style="width:0%"></div>`;
+    }
+    z.innerHTML = inner;
+
+    if (id === selectedZone && mode === 'log') z.classList.add('selected');
+    if (mode === 'travel' && id === rover.targetZone && !rover.moving) z.classList.add('target-zone');
+  }));
+}
+
+// --- Zone Click ---
+function onZoneClick(id) {
+  if (mode === 'log') {
+    selectedZone = id;
+    refreshGrid();
+    renderSidePanel();
+  } else {
+    // Travel mode: set destination
+    if (id === rover.zone && !rover.moving) {
+      showToast('ROVER ALREADY AT ' + id, 'info'); return;
+    }
+    if (rover.moving) {
+      showToast('ROVER IN TRANSIT...', 'info'); return;
+    }
+    setTravelTarget(id);
+  }
+}
+
+// --- LOG MODE actions ---
+function updateBar(node, val) {
+  const pct = Math.max(0, Math.min(100, ((+val+90)/40)*100));
+  const bar = document.getElementById('bar-'+node);
+  if (bar) bar.style.width = pct + '%';
+}
+
+function saveZone() {
+  if (!selectedZone) return;
+  const vals = {};
+  let valid = true;
+  ['N1','N2','N3','N4'].forEach(n => {
+    const el = document.getElementById('inp-'+n);
+    if (!el) { valid=false; return; }
+    vals[n] = +el.value;
+  });
+  if (!valid) return;
+  fingerprints[selectedZone] = vals;
+  save();
+  refreshGrid();
+  renderSidePanel();
+  showToast('✓ ZONE ' + selectedZone + ' SAVED', 'ok');
+}
+
+function clearZone() {
+  if (!selectedZone) return;
+  delete fingerprints[selectedZone];
+  save();
+  refreshGrid();
+  renderSidePanel();
+  showToast('✗ ZONE ' + selectedZone + ' CLEARED', 'error');
+}
+
+function submitToTravel() {
+  if (Object.keys(fingerprints).length === 0) {
+    showToast('LOG AT LEAST ONE ZONE FIRST', 'error'); return;
+  }
+  enterTravelMode();
+}
+
+// --- MODE SWITCH ---
+function enterTravelMode() {
+  mode = 'travel';
+  selectedZone = null;
+  rover.zone = 'A1';
+  rover.x = 0; rover.y = 0;
+  rover.heading = 90; // facing east (towards A2)
+  rover.trail = [{x:0,y:0}];
+  rover.moving = false;
+  rover.targetZone = null;
+  pathLog = [];
+  animFrom = null; animTo = null; animProgress = 0;
+  waypointQueue = [];
+  if (animFrame) { cancelAnimationFrame(animFrame); clearTimeout(animFrame); animFrame = null; }
+
+  document.getElementById('mode-badge').className = 'mode-badge travel';
+  document.getElementById('mode-badge').textContent = '⦿ TRAVEL MODE';
+  document.getElementById('arena-title').textContent = '🗺 TRAVEL MODE — CLICK A ZONE TO MOVE ROVER';
+  document.getElementById('conn-dot').style.cssText = 'background:var(--amber);box-shadow:0 0 8px var(--amber)';
+  document.getElementById('conn-txt').textContent = 'ROVER ACTIVE · A1';
+
+  refreshGrid();
+  renderSidePanel();
+  drawRover();
+  showToast('▶ TRAVEL MODE — CLICK A ZONE TO NAVIGATE', 'ok');
+}
+
+function exitToLog() {
+  mode = 'log';
+  rover.targetZone = null;
+  rover.moving = false;
+  if (animFrame) { cancelAnimationFrame(animFrame); clearTimeout(animFrame); animFrame = null; }
+  waypointQueue = [];
+
+  document.getElementById('mode-badge').className = 'mode-badge log';
+  document.getElementById('mode-badge').textContent = '⬡ LOG MODE';
+  document.getElementById('arena-title').textContent = '📋 LOG MODE — RSSI FINGERPRINT MAP';
+  document.getElementById('conn-dot').style.cssText = 'background:var(--text3);box-shadow:none';
+  document.getElementById('conn-txt').textContent = 'STANDBY';
+
+  const canvas = document.getElementById('rover-canvas');
+  if (canvas) { const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+
+  refreshGrid();
+  renderSidePanel();
+  showToast('← RETURNED TO LOG MODE', 'info');
+}
+
+// --- TRAVEL: L-shaped cell-by-cell movement ---
+// Waypoint queue for current journey
+let waypointQueue = []; // [{x, y}] integer grid coords
+let stepFrom = null;    // current cell animation start {x,y}
+let stepTo = null;      // current cell animation end {x,y}
+let stepProgress = 0;
+let finalZoneId = null;
+let originZoneId = null;
+
+function setTravelTarget(zoneId) {
+  if (rover.moving) return;
+  rover.targetZone = zoneId;
+  finalZoneId = zoneId;
+  originZoneId = rover.zone;
+
+  const toCol = COLS.indexOf(zoneId[1]);
+  const toRow = ROWS.indexOf(zoneId[0]);
+  const fromCol = Math.round(rover.x);
+  const fromRow = Math.round(rover.y);
+
+  // Build L-path: move along columns first (horizontal), then rows (vertical)
+  waypointQueue = [];
+  const stepCol = toCol > fromCol ? 1 : toCol < fromCol ? -1 : 0;
+  const stepRow = toRow > fromRow ? 1 : toRow < fromRow ? -1 : 0;
+
+  // Horizontal leg: step column by column
+  let c = fromCol;
+  while (c !== toCol) {
+    c += stepCol;
+    waypointQueue.push({ x: c, y: fromRow });
+  }
+  // Vertical leg: step row by row
+  let r = fromRow;
+  while (r !== toRow) {
+    r += stepRow;
+    waypointQueue.push({ x: toCol, y: r });
+  }
+
+  if (waypointQueue.length === 0) {
+    // Already there
+    showToast('ROVER ALREADY AT ' + zoneId, 'info');
+    return;
+  }
+
+  rover.moving = true;
+  refreshGrid();
+  renderSidePanel();
+  showToast('→ NAVIGATING TO ' + zoneId, 'ok');
+  stepNextWaypoint();
+}
+
+function stepNextWaypoint() {
+  if (waypointQueue.length === 0) {
+    // All steps done — arrived
+    rover.zone = finalZoneId;
+    rover.moving = false;
+    rover.targetZone = null;
+    rover.trail.push({ x: rover.x, y: rover.y });
+    if (rover.trail.length > 60) rover.trail.shift();
+    pathLog.unshift({ from: originZoneId, to: finalZoneId });
+    if (pathLog.length > 8) pathLog.pop();
+
+    document.getElementById('conn-txt').textContent = 'ROVER ACTIVE · ' + finalZoneId;
+    refreshGrid();
+    renderSidePanel();
+    drawRover();
+    showToast('✓ ARRIVED AT ' + finalZoneId, 'ok');
+    return;
+  }
+
+  const next = waypointQueue.shift();
+  stepFrom = { x: rover.x, y: rover.y };
+  stepTo   = { x: next.x,  y: next.y  };
+  stepProgress = 0;
+
+  // Set heading based on direction of this step
+  const dx = stepTo.x - stepFrom.x;
+  const dy = stepTo.y - stepFrom.y;
+  // heading: 0=east, 90=south, 180=west, 270=north (atan2 in grid space)
+  rover.heading = Math.atan2(dy, dx) * 180 / Math.PI;
+
+  const STEP_DURATION = 320; // ms per cell
+  let startTime = null;
+
+  function animateStep(ts) {
+    if (!startTime) startTime = ts;
+    const elapsed = ts - startTime;
+    stepProgress = Math.min(1, elapsed / STEP_DURATION);
+
+    // Ease in-out cubic
+    const t = stepProgress < 0.5
+      ? 4 * stepProgress * stepProgress * stepProgress
+      : 1 - Math.pow(-2 * stepProgress + 2, 3) / 2;
+
+    rover.x = stepFrom.x + (stepTo.x - stepFrom.x) * t;
+    rover.y = stepFrom.y + (stepTo.y - stepFrom.y) * t;
+
+    drawRover();
+
+    if (stepProgress < 1) {
+      animFrame = requestAnimationFrame(animateStep);
+    } else {
+      // Snap to exact cell
+      rover.x = stepTo.x;
+      rover.y = stepTo.y;
+
+      // Update zone label to current intermediate cell
+      const curZoneId = ROWS[Math.round(rover.y)] + COLS[Math.round(rover.x)];
+      rover.zone = curZoneId;
+      document.getElementById('conn-txt').textContent = 'ROVER ACTIVE · ' + curZoneId;
+
+      // Stamp trail at each cell
+      rover.trail.push({ x: rover.x, y: rover.y });
+      if (rover.trail.length > 60) rover.trail.shift();
+
+      refreshGrid();
+      renderSidePanel();
+      // Tiny pause at cell then continue
+      animFrame = setTimeout(stepNextWaypoint, 60);
+    }
+  }
+  animFrame = requestAnimationFrame(animateStep);
+}
+
+// --- DRAW ROVER ---
+function drawRover() {
+  const canvas = document.getElementById('rover-canvas');
+  if (!canvas) return;
+  const wrapper = document.getElementById('arena-wrapper');
+  const gridEl = document.getElementById('arena-grid');
+  if (!gridEl || !wrapper) return;
+
+  const gridRect = gridEl.getBoundingClientRect();
+  const wrapRect = wrapper.getBoundingClientRect();
+  canvas.width = wrapRect.width;
+  canvas.height = wrapRect.height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (mode !== 'travel') return;
+
+  const offX = gridRect.left - wrapRect.left;
+  const offY = gridRect.top - wrapRect.top;
+  const cellW = gridRect.width / 4;
+  const cellH = gridRect.height / 4;
+
+  // Helper: zone-fraction to canvas px
+  function toCanvas(gx, gy) {
+    return {
+      cx: offX + (gx + 0.5) * cellW,
+      cy: offY + (gy + 0.5) * cellH
+    };
+  }
+
+  // Draw trail
+  if (rover.trail.length > 1) {
+    ctx.beginPath();
+    ctx.setLineDash([5,5]);
+    ctx.strokeStyle = 'rgba(0,212,255,0.25)';
+    ctx.lineWidth = 1.5;
+    rover.trail.forEach((pt, i) => {
+      const {cx,cy} = toCanvas(pt.x, pt.y);
+      i===0 ? ctx.moveTo(cx,cy) : ctx.lineTo(cx,cy);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Fading dots
+    rover.trail.forEach((pt, i) => {
+      const {cx,cy} = toCanvas(pt.x, pt.y);
+      const alpha = (i/rover.trail.length)*0.5;
+      ctx.beginPath();
+      ctx.arc(cx,cy,2+(i/rover.trail.length)*2,0,Math.PI*2);
+      ctx.fillStyle = `rgba(0,212,255,${alpha})`;
+      ctx.fill();
+    });
+  }
+
+  // Current rover position (animated)
+  const {cx:rx, cy:ry} = toCanvas(rover.x, rover.y);
+
+  // Heading: rover.heading is atan2(dy,dx) east-centric, convert for canvas
+  // canvas "up" = -Y. heading 0 = east = arrow points right.
+  const hdRad = rover.heading * Math.PI / 180;
+  const arrowLen = 26;
+  const ax = rx + Math.cos(hdRad) * arrowLen;
+  const ay = ry + Math.sin(hdRad) * arrowLen;
+
+  // Glow
+  const grad = ctx.createRadialGradient(rx,ry,0,rx,ry,22);
+  grad.addColorStop(0,'rgba(255,184,48,0.28)');
+  grad.addColorStop(1,'rgba(255,184,48,0)');
+  ctx.beginPath(); ctx.arc(rx,ry,22,0,Math.PI*2);
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Heading line
+  ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(ax,ay);
+  ctx.strokeStyle='#ffb830'; ctx.lineWidth=2.5; ctx.stroke();
+
+  // Arrow tip
+  const tipAngle1 = hdRad + 2.6;
+  const tipAngle2 = hdRad - 2.6;
+  ctx.beginPath();
+  ctx.moveTo(ax,ay);
+  ctx.lineTo(ax+Math.cos(tipAngle1)*9, ay+Math.sin(tipAngle1)*9);
+  ctx.lineTo(ax+Math.cos(tipAngle2)*9, ay+Math.sin(tipAngle2)*9);
+  ctx.closePath();
+  ctx.fillStyle='#ffb830'; ctx.fill();
+
+  // Rover body ring
+  ctx.beginPath(); ctx.arc(rx,ry,11,0,Math.PI*2);
+  ctx.strokeStyle='#ffb830'; ctx.lineWidth=2; ctx.stroke();
+
+  // Rover dot
+  ctx.beginPath(); ctx.arc(rx,ry,8,0,Math.PI*2);
+  ctx.fillStyle='#000'; ctx.fill();
+  ctx.beginPath(); ctx.arc(rx,ry,5,0,Math.PI*2);
+  ctx.fillStyle='#ffb830'; ctx.fill();
+  ctx.beginPath(); ctx.arc(rx,ry,2,0,Math.PI*2);
+  ctx.fillStyle='#000'; ctx.fill();
+
+  // Target crosshair (if moving)
+  if (rover.moving && animTo) {
+    const {cx:tx,cy:ty} = toCanvas(animTo.x, animTo.y);
+    ctx.strokeStyle='rgba(0,212,255,0.6)';
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(tx-10,ty); ctx.lineTo(tx+10,ty); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tx,ty-10); ctx.lineTo(tx,ty+10); ctx.stroke();
+    ctx.beginPath(); ctx.arc(tx,ty,8,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,212,255,0.35)'; ctx.stroke();
+  }
+}
+
+// --- SIDE PANEL RENDER ---
+function renderSidePanel() {
+  const panel = document.getElementById('side-panel');
+  if (mode === 'log') renderLogPanel(panel);
+  else renderTravelPanel(panel);
+}
+
+function renderLogPanel(panel) {
+  const fp = selectedZone ? fingerprints[selectedZone] : null;
+  const n1=fp?fp.N1:-65, n2=fp?fp.N2:-72, n3=fp?fp.N3:-68, n4=fp?fp.N4:-75;
+  const mapped = Object.keys(fingerprints).length;
+
+  panel.innerHTML = `
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="phd" style="background:var(--purple)"></div>
+        ZONE FINGERPRINT
+      </div>
+      <div class="panel-card-body">
+        ${selectedZone ? `
+          <div class="zone-detail-id">${selectedZone}</div>
+          <div class="rssi-fields">
+            ${['N1','N2','N3','N4'].map((n,i)=>{
+              const v=[n1,n2,n3,n4][i];
+              const pct=Math.max(0,Math.min(100,((v+90)/40)*100));
+              return `<div class="rssi-row">
+                <span class="rssi-label">${n}</span>
+                <div class="rssi-bar-wrap"><div class="rssi-bar" id="bar-${n}" style="width:${pct.toFixed(0)}%"></div></div>
+                <input class="rssi-input" id="inp-${n}" type="number" value="${v}" min="-100" max="-20"
+                  oninput="updateBar('${n}',this.value)" />
+              </div>`;
+            }).join('')}
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" onclick="saveZone()">SAVE</button>
+            <button class="btn danger" onclick="clearZone()">CLEAR</button>
+          </div>
+          ${fp ? `<div style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--green2);text-align:center;letter-spacing:1px">✓ FINGERPRINT STORED</div>` : ''}
+        ` : `<div class="no-zone">SELECT A ZONE<br/>ON THE GRID<br/>TO LOG RSSI DATA</div>`}
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="phd" style="background:var(--green)"></div>
+        COVERAGE
+      </div>
+      <div style="padding:12px">
+        <div class="log-stats-grid">
+          <div class="log-stat">
+            <div class="log-stat-val green">${mapped}</div>
+            <div class="log-stat-label">Mapped</div>
+          </div>
+          <div class="log-stat">
+            <div class="log-stat-val amber">${TOTAL-mapped}</div>
+            <div class="log-stat-label">Unmapped</div>
+          </div>
+          <div class="log-stat">
+            <div class="log-stat-val">${Math.round(mapped/TOTAL*100)}%</div>
+            <div class="log-stat-label">Coverage</div>
+          </div>
+          <div class="log-stat">
+            <div class="log-stat-val" style="color:var(--purple)">${mapped>0?calcAvgConf():'—'}</div>
+            <div class="log-stat-label">Avg Conf</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="phd" style="background:var(--green)"></div>
+        LAUNCH TRAVEL MODE
+      </div>
+      <div style="padding:14px">
+        <div class="instruction-banner" style="margin-bottom:12px">
+          Log RSSI values for your zones,<br/>then submit to begin rover navigation.
+        </div>
+        <button class="btn submit" style="width:100%" onclick="submitToTravel()">
+          ▶ SUBMIT &amp; ENTER TRAVEL MODE
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTravelPanel(panel) {
+  const hdgLabel = headingLabel(rover.heading);
+  panel.innerHTML = `
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="phd" style="background:var(--amber)"></div>
+        ROVER STATUS
+      </div>
+      <div class="travel-info">
+        <div class="rover-zone-display">
+          <svg width="28" height="28" viewBox="0 0 28 28">
+            <circle cx="14" cy="14" r="12" fill="none" stroke="#ffb830" stroke-width="1.5"/>
+            <circle cx="14" cy="14" r="6" fill="#ffb830" opacity="0.8"/>
+            <circle cx="14" cy="14" r="2.5" fill="#000"/>
+          </svg>
+          <div>
+            <div class="rzd-label">CURRENT ZONE</div>
+            <div class="rzd-val">${rover.zone}</div>
+          </div>
+          <div style="margin-left:auto;text-align:right">
+            <div class="rzd-label">STATUS</div>
+            <div style="font-family:var(--mono);font-size:12px;color:${rover.moving?'var(--accent)':'var(--green)'}">${rover.moving?'MOVING':'IDLE'}</div>
+          </div>
+        </div>
+        <div class="heading-display">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="var(--border2)" stroke-width="1"/>
+            <text x="20" y="8" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="var(--text3)">N</text>
+            <text x="35" y="22" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="var(--text3)">E</text>
+            <text x="20" y="37" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="var(--text3)">S</text>
+            <text x="5" y="22" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="var(--text3)">W</text>
+            <g style="transform-origin:20px 20px;transform:rotate(${rover.heading+90}deg)">
+              <polygon points="20,4 22,20 20,24 18,20" fill="var(--red)"/>
+              <polygon points="20,36 22,20 20,16 18,20" fill="var(--text3)"/>
+            </g>
+            <circle cx="20" cy="20" r="3" fill="var(--bg)" stroke="var(--border2)" stroke-width="1"/>
+          </svg>
+          <div>
+            <div class="hdg-label">HEADING</div>
+            <div class="hdg-val">${Math.round(rover.heading+90+360)%360}° ${hdgLabel}</div>
+          </div>
+        </div>
+        ${rover.targetZone ? `
+        <div style="padding:8px 10px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--accent)">
+          → NAVIGATING TO: <strong style="font-size:14px">${rover.targetZone}</strong>
+        </div>` : `
+        <div class="instruction-banner">
+          CLICK ANY ZONE ON THE GRID<br/>TO MOVE ROVER THERE
+        </div>`}
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="phd" style="background:var(--accent)"></div>
+        PATH LOG
+      </div>
+      <div style="padding:10px 12px">
+        ${pathLog.length === 0 ?
+          `<div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:center;padding:12px">NO MOVEMENTS YET</div>` :
+          `<div class="path-log">${pathLog.map(p=>`
+            <div class="path-entry">
+              <span class="path-from">${p.from}</span>
+              <span class="path-arrow">→</span>
+              <span class="path-to">${p.to}</span>
+            </div>`).join('')}</div>`
+        }
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <div class="phd" style="background:var(--text3)"></div>
+        CONTROLS
+      </div>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn" style="width:100%" onclick="clearTrail()">CLR TRAIL</button>
+        <button class="btn" style="width:100%" onclick="resetRover()">RESET TO A1</button>
+        <button class="btn back" style="width:100%" onclick="exitToLog()">← BACK TO LOG MODE</button>
+      </div>
+    </div>
+  `;
+}
+
+function headingLabel(deg) {
+  const d = ((deg + 90) % 360 + 360) % 360;
+  if (d < 22.5 || d >= 337.5) return 'N';
+  if (d < 67.5) return 'NE';
+  if (d < 112.5) return 'E';
+  if (d < 157.5) return 'SE';
+  if (d < 202.5) return 'S';
+  if (d < 247.5) return 'SW';
+  if (d < 292.5) return 'W';
+  return 'NW';
+}
+
+function clearTrail() {
+  rover.trail = [{ x: rover.x, y: rover.y }];
+  drawRover();
+}
+
+function resetRover() {
+  if (rover.moving) return;
+  rover.zone='A1'; rover.x=0; rover.y=0; rover.heading=90;
+  rover.trail=[{x:0,y:0}]; rover.targetZone=null;
+  pathLog=[];
+  document.getElementById('conn-txt').textContent = 'ROVER ACTIVE · A1';
+  refreshGrid(); renderSidePanel(); drawRover();
+  showToast('↺ ROVER RESET TO A1', 'info');
+}
+
+function calcAvgConf() {
+  const keys=Object.keys(fingerprints);
+  if (!keys.length) return '—';
+  let sum=0;
+  keys.forEach(k=>{
+    const fp=fingerprints[k];
+    const avg=(fp.N1+fp.N2+fp.N3+fp.N4)/4;
+    sum+=Math.max(0,Math.min(100,((avg+90)/40)*100));
+  });
+  return Math.round(sum/keys.length)+'%';
+}
+
+// --- TOAST ---
+function showToast(msg, type) {
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(type==='error'?' error':type==='info'?' info':'');
+  setTimeout(()=>{t.className='toast';},2500);
+}
+
+// Redraw rover on window resize
+window.addEventListener('resize', ()=>{ if(mode==='travel') drawRover(); });
+
+// Init
+buildGrid();
+renderSidePanel();
+
+// ─── MQTT INTEGRATION ─────────────────────────────────────────────────────
+// Connects to the Node.js backend over MQTT-over-WebSocket.
+// The backend runs a built-in broker on ws://localhost:9001
+//
+// Topics used:
+//   PUBLISH  rover/travel/target  → tell backend user clicked a zone
+//   PUBLISH  rover/reset          → tell backend to cancel movement
+//   SUBSCRIBE rover/status        → receive status updates from backend
+
+const MQTT_WS_URL = 'ws://localhost:9001'; // must match CONFIG.MQTT_WS_PORT in server.js
+
+let mqttClient = null;
+let mqttConnected = false;
+
+function connectMQTT() {
+  // mqtt.js is loaded from CDN below — window.mqtt
+  if (!window.mqtt) {
+    console.warn('[MQTT] mqtt.js not loaded yet');
+    return;
+  }
+
+  mqttClient = window.mqtt.connect(MQTT_WS_URL, {
+    clientId: 'rovernav-frontend-' + Math.random().toString(16).slice(2, 8),
+    reconnectPeriod: 3000, // retry every 3 s if connection drops
+  });
+
+  mqttClient.on('connect', () => {
+    mqttConnected = true;
+    console.log('[MQTT] Connected to backend broker');
+    updateConnUI(true);
+
+    // Subscribe to status updates from the backend
+    mqttClient.subscribe('rover/status', (err) => {
+      if (err) console.error('[MQTT] Subscribe error:', err);
+      else console.log('[MQTT] Subscribed to rover/status');
+    });
+  });
+
+  mqttClient.on('error', (err) => {
+    console.error('[MQTT] Error:', err.message);
+  });
+
+  mqttClient.on('close', () => {
+    mqttConnected = false;
+    updateConnUI(false);
+    console.log('[MQTT] Disconnected from broker');
+  });
+
+  mqttClient.on('message', (topic, message) => {
+    const raw = message.toString();
+    console.log('[MQTT] Received:', topic, raw);
+
+    if (topic === 'rover/status') {
+      try {
+        const status = JSON.parse(raw);
+        handleBackendStatus(status);
+      } catch (e) {
+        console.error('[MQTT] Could not parse rover/status:', raw);
+      }
+    }
+  });
+}
+
+// Update the connection indicator in the header
+function updateConnUI(connected) {
+  const dot = document.getElementById('conn-dot');
+  const txt = document.getElementById('conn-txt');
+  if (!dot || !txt) return;
+  if (connected) {
+    dot.style.cssText = 'background:var(--green);box-shadow:0 0 8px var(--green)';
+    txt.textContent = 'BACKEND CONNECTED';
+  } else {
+    dot.style.cssText = 'background:var(--red);box-shadow:none';
+    txt.textContent = 'BACKEND OFFLINE';
+  }
+}
+
+// Handle a status message that arrived from the backend
+function handleBackendStatus(status) {
+  // status = { rover_zone, state, message, heading, timestamp }
+  const dot = document.getElementById('conn-dot');
+  const txt = document.getElementById('conn-txt');
+
+  if (status.state === 'moving') {
+    if (dot) dot.style.cssText = 'background:var(--amber);box-shadow:0 0 8px var(--amber)';
+    if (txt) txt.textContent = 'ROVER MOVING · ' + (status.rover_zone || '');
+  } else if (status.state === 'idle') {
+    if (dot) dot.style.cssText = 'background:var(--green);box-shadow:0 0 8px var(--green)';
+    if (txt) txt.textContent = 'ROVER IDLE · ' + (status.rover_zone || '');
+  }
+
+  // Show a toast so the user knows what the backend acknowledged
+  if (status.message) {
+    showToast('[BACKEND] ' + status.message,
+      status.state === 'idle' ? 'ok' : 'info');
+  }
+}
+
+/**
+ * Publish the clicked zone to the backend.
+ * Called in travel mode whenever the user clicks a zone.
+ * If the backend is offline we still run the visual animation locally.
+ */
+function publishTravelTarget(zoneId) {
+  if (!mqttConnected) {
+    console.warn('[MQTT] Not connected — running in local-only mode');
+    showToast('⚠ BACKEND OFFLINE — local preview only', 'info');
+    return;
+  }
+  const payload = JSON.stringify({ zone: zoneId });
+  mqttClient.publish('rover/travel/target', payload);
+  console.log('[MQTT] Published rover/travel/target:', payload);
+}
+
+/**
+ * Publish a reset to the backend.
+ * Called when the user clicks RESET TO A1 in the side panel.
+ */
+function publishReset() {
+  if (!mqttConnected) return;
+  mqttClient.publish('rover/reset', JSON.stringify({ reset: true }));
+  console.log('[MQTT] Published rover/reset');
+}
+
+// ── Hook into existing functions ──────────────────────────────────────────
+// We wrap setTravelTarget so it also tells the backend about the new target.
+const _originalSetTravelTarget = setTravelTarget;
+setTravelTarget = function(zoneId) {
+  publishTravelTarget(zoneId); // notify backend
+  _originalSetTravelTarget(zoneId); // run original visual animation
+};
+
+// Wrap resetRover to also reset the backend state
+const _originalResetRover = resetRover;
+resetRover = function() {
+  publishReset();
+  _originalResetRover();
+};
+
+// Start connecting once the mqtt.js script has loaded
+window.addEventListener('load', () => {
+  connectMQTT();
+});
+</script>
+
+<!-- mqtt.js loaded from CDN — provides window.mqtt for the browser -->
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</body>
+</html>
