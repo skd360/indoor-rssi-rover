@@ -61,8 +61,6 @@ indoor-rssi-rover/
 ├── firmware/
 ├── backend/
 ├── frontend/
-├── diagrams/
-├── database/
 └── README.md
 ```
 
